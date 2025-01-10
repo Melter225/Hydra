@@ -3,7 +3,7 @@ import React from "react";
 
 const Footer = () => {
   return (
-    <footer className="absolute w-full bottom-0 bg-gradient-to-b from-transparent to-[#6d3435] p-4 pt-12">
+    <footer className="absolute w-full bg-gradient-to-b from-transparent to-[#6d3435] p-4 pt-12">
       <div>
         <p>&copy; {new Date().getFullYear()} Inferno. All rights reserved.</p>
       </div>
