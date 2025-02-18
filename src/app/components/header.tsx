@@ -11,7 +11,7 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed flex bg-red-500/20 backdrop-blur-[10px] items-center justify-between top-0 p-4 w-full h-20">
+    <header className="fixed flex z-50 bg-[#964448]/60 backdrop-blur-md items-center justify-between top-0 p-4 w-full h-20">
       <div className="flex items-center">
         <Image
           className="ml-5 mr-4"
@@ -22,24 +22,26 @@ const Header = () => {
         />
         <h1 className="text-2xl font-bold">Inferno</h1>
       </div>
-      <div className="absolute left-1/2 transform -translate-x-1/2">
-        <div className="grid grid-cols-2 items-center justify-center w-[12rem] rounded-full border-2 border-neutral-800 py-2 px-2">
-          <p
-            className="text-center hover:cursor-pointer"
-            onClick={() => {
-              scrollToSection("about");
-            }}
-          >
-            About
-          </p>
-          <p
-            className="text-center hover:cursor-pointer"
-            onClick={() => {
-              scrollToSection("map");
-            }}
-          >
-            Map
-          </p>
+      <div className="hidden sm:flex sm:items-center md:justify-normal">
+        <div className="hidden sm:flex absolute sm:left-[82%] md:left-1/2 sm:transform sm:-translate-x-1/2">
+          <div className="grid grid-cols-2 items-center justify-center w-[12rem] rounded-full border-2 border-neutral-800 py-2 px-2">
+            <p
+              className="text-center hover:cursor-pointer"
+              onClick={() => {
+                scrollToSection("about");
+              }}
+            >
+              About
+            </p>
+            <p
+              className="text-center hover:cursor-pointer"
+              onClick={() => {
+                scrollToSection("map");
+              }}
+            >
+              Map
+            </p>
+          </div>
         </div>
       </div>
     </header>
