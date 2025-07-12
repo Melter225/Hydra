@@ -20,14 +20,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-type WildfireLocation = {
-  minLat: number;
-  maxLat: number;
-  minLon: number;
-  maxLon: number;
-  severity: number;
-};
-
 interface SearchBounds {
   coordinates: { lat: number; lng: number }[];
 }
@@ -50,23 +42,15 @@ type controlledFireData = {
     lat: number;
   };
   locationName: string;
-  reason: string;
-};
-
-type wildfireData = {
-  locationName: string;
-  locations: WildfireLocation[];
-  reason: string;
+  intensity: number;
 };
 
 type ControlledFireData = controlledFireData | null;
-type WildfireData = wildfireData | null;
 
 const Map = () => {
-  const [fireType, setFireType] = useState("Controlled Fire");
-  const [description, setDescription] = useState(
-    "Controlled fires are fires that are intentionally ignited for forest management, agricultural, or other purposes. They are both a tool and a weapon for forest management."
-  );
+  const fireType = "Controlled Fire";
+  const description =
+    "Controlled fires are fires that are intentionally ignited for forest management, agricultural, or other purposes. They are both a tool and a weapon for forest management.";
   const [showModal, setShowModal] = useState(true);
   const [minLat, setMinLat] = useState("");
   const [maxLat, setMaxLat] = useState("");
@@ -80,18 +64,15 @@ const Map = () => {
   const [inputError, setInputError] = useState("");
   const [controlledFireData, setControlledFireData] =
     useState<ControlledFireData>(null);
-  const [wildfireData, setWildfireData] = useState<WildfireData>(null);
   const [optimalLocation, setOptimalLocation] =
     useState<OptimalLocation | null>(null);
-  const [wildfireLocations, setWildfireLocations] = useState<
-    WildfireLocation[]
-  >([]);
   const [selectedBounds, setSelectedBounds] = useState<SearchBounds | null>(
     null
   );
   const [zoom, setZoom] = useState(3);
   const [mapCenter, setMapCenter] = useState({ lat: 0, lng: 0 });
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const containerStyle = {
     width: "100%",
@@ -145,39 +126,9 @@ const Map = () => {
     return isValid;
   };
 
-  const resetAllStates = () => {
-    setMinLat("");
-    setMaxLat("");
-    setMinLon("");
-    setMaxLon("");
-    setMinLatDirection("N");
-    setMaxLatDirection("N");
-    setMinLonDirection("E");
-    setMaxLonDirection("E");
-    setCoordinateErrors({});
-    setInputError("");
-    setControlledFireData(null);
-    setWildfireData(null);
-    setOptimalLocation(null);
-    setSelectedBounds(null);
-    setZoom(3);
-    setMapCenter({ lat: 0, lng: 0 });
-    setShowModal(false);
-  };
-
-  const toggleFireType = () => {
-    setShowModal(true);
-  };
-
-  const handleFireTypeChange = (newType: string) => {
-    setFireType(newType);
-    setDescription(
-      newType === "Controlled Fire"
-        ? "Controlled fires are fires that are intentionally ignited for forest management, agricultural, or other purposes. They are both a tool and a weapon for forest management."
-        : "A wildfire, wildland fire or rural fire is an uncontrolled fire in an area of combustible vegetation occurring in rural areas."
-    );
-    resetAllStates();
-  };
+  // const toggleFireType = () => {
+  //   setShowModal(true);
+  // };
 
   const handleSubmit = async () => {
     if (validateCoordinates()) {
@@ -202,47 +153,34 @@ const Map = () => {
           coordinates: polygonCoordinates,
         });
 
-        if (fireType === "Controlled Fire") {
-          const response = await fetch("/api/controlledFire", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              minLat: signedMinLat,
-              maxLat: signedMaxLat,
-              minLon: signedMinLon,
-              maxLon: signedMaxLon,
-            }),
-          });
-          const data = await response.json();
-          setControlledFireData(data);
-          setWildfireData(null);
-          setOptimalLocation({
-            coordinates: [data.location.lon, data.location.lat],
-            name: data.locationName || "Optimal Location",
-          });
-          setMapCenter({ lat: data.location.lat, lng: data.location.lon });
-        } else {
-          const response = await fetch("/api/wildfire", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              minLat: signedMinLat,
-              maxLat: signedMaxLat,
-              minLon: signedMinLon,
-              maxLon: signedMaxLon,
-            }),
-          });
-          const data = await response.json();
-          setWildfireData(data);
-          setControlledFireData(null);
-          setWildfireLocations(data.locations);
-          setMapCenter({
-            lat: (signedMinLat + signedMaxLat) / 2,
-            lng: (signedMinLon + signedMaxLon) / 2,
-          });
-        }
+        setIsLoading(true);
+
+        const response = await fetch("/api/controlledFire", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            minLat: signedMinLat,
+            maxLat: signedMaxLat,
+            minLon: signedMinLon,
+            maxLon: signedMaxLon,
+          }),
+        });
+
+        setIsLoading(false);
+
+        const data = await response.json();
+        console.log("data", data, "location", {
+          coordinates: [data.location.lat, data.location.lon],
+          name: data.locationName || "Optimal Location",
+        });
+        setControlledFireData(data);
+        setOptimalLocation({
+          coordinates: [data.location.lon, data.location.lat],
+          name: data.locationName || "Optimal Location",
+        });
+        console.log(controlledFireData, optimalLocation);
+        setMapCenter({ lat: data.location.lat, lng: data.location.lon });
         setZoom(8);
-        handleFireTypeChange("Controlled Fire");
         setShowModal(false);
       } catch (error) {
         console.error("Error:", error);
@@ -260,10 +198,8 @@ const Map = () => {
       <div className="mt-6 mb-24 px-6 sm:px-12 lg:px-24">
         <div className="w-full border-2 border-gray-800 rounded-t-md p-5 flex flex-col sm:flex-row gap-y-4 sm:gap-y-0 justify-between items-start sm:items-center">
           <div>
-            <p className="text-xl font-semibold mr-4 md:mr-0">
-              Current Mode: {fireType}
-            </p>
-            <p className="hidden sm:block text-sm text-gray-400 mt-1 pr-[3rem]">
+            <p className="text-xl font-semibold mr-4 md:mr-0">{fireType}</p>
+            <p className="hidden sm:block text-sm text-gray-700 mt-1 pr-[3rem]">
               {description}
             </p>
           </div>
@@ -275,13 +211,13 @@ const Map = () => {
             >
               Enter Coordinates
             </Button>
-            <Button
+            {/* <Button
               className="bg-blue-600 hover:bg-blue-700 border-2 border-blue-400 text-gray-300 hover:text-gray-300 w-full rounded-lg"
               onClick={toggleFireType}
               variant="outline"
             >
               Toggle Mode
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -332,49 +268,12 @@ const Map = () => {
                     }}
                   ></Marker>
                 )}
-
-                {wildfireLocations.map((location, index) => {
-                  const { minLat, maxLat, minLon, maxLon, severity } = location;
-
-                  const getColor = () => {
-                    switch (severity) {
-                      case 1:
-                        return "#FF4500";
-                      case 2:
-                        return "#FF7F50";
-                      case 3:
-                        return "#FFA07A";
-                      default:
-                        return "#FF7F50";
-                    }
-                  };
-                  return (
-                    <Polygon
-                      key={index}
-                      paths={[
-                        { lat: minLat, lng: minLon },
-                        { lat: maxLat, lng: minLon },
-                        { lat: maxLat, lng: maxLon },
-                        { lat: minLat, lng: maxLon },
-                      ]}
-                      options={{
-                        strokeColor: getColor(),
-                        strokeOpacity: 0.8,
-                        strokeWeight: 2,
-                        fillColor: getColor(),
-                        fillOpacity: 0.15,
-                      }}
-                    />
-                  );
-                })}
               </GoogleMap>
             </LoadScript>
           </div>
           <div
             className={`absolute ${
-              controlledFireData || wildfireData
-                ? "bottom-[10.495rem]"
-                : "bottom-7"
+              controlledFireData ? "bottom-[10.495rem]" : "bottom-7"
             } left-[1.85rem] bg-white p-3 border rounded-md shadow-md`}
           >
             <div className="flex items-center mb-2">
@@ -397,12 +296,6 @@ const Map = () => {
                 <span className="text-xs ml-2">Optimal Location</span>
               </div>
             )}
-            {fireType === "Wildfire" && (
-              <div className="flex items-center">
-                <div className="w-4 h-4 mr-2 border border-[#FF4500] bg-[#FF7F50]"></div>
-                <span className="text-xs ml-2">Locations at Highest Risk</span>
-              </div>
-            )}
           </div>
           {controlledFireData &&
             (console.log(
@@ -416,231 +309,234 @@ const Map = () => {
                 <h3 className="font-semibold">Controlled Fire Details</h3>
                 <p>Search Bounds: {controlledFireData.locationName}</p>
                 <p>
-                  Optimal Location: {controlledFireData.location.lon.toFixed(4)}
-                  ° E, {controlledFireData.location.lat.toFixed(4)}° N
+                  Optimal Location: {controlledFireData.location.lat.toFixed(4)}
+                  °, {controlledFireData.location.lon.toFixed(4)}°
                 </p>
-                <p>Reason: {controlledFireData.reason}</p>
-              </div>
-            ))}
-
-          {wildfireData &&
-            (console.log(
-              "wildfireData",
-              wildfireData,
-              "location at highest risk",
-              wildfireData.locations
-                .filter((location) => location.severity === 1)
-                .map((location) => location.minLat)
-            ),
-            (
-              <div className="mt-4 text-center bg-gray-100 p-3 rounded-md">
-                <h3 className="font-semibold">Wildfire Details</h3>
-                <p>Search Bounds: {wildfireData.locationName}</p>
                 <p>
-                  Location at Highest Risk:
-                  {wildfireData.locations
-                    .filter((location) => location.severity === 1)
-                    .map((location) => location.minLat)}
+                  Approximate Intensity (FRP):{" "}
+                  {controlledFireData.intensity.toFixed(2)} megawatts
                 </p>
-                <p>Reason: {wildfireData.reason}</p>
               </div>
             ))}
         </div>
 
         <Dialog open={showModal} onOpenChange={setShowModal}>
-          <DialogContent className="rounded-md max-w-md sm:max-w-lg">
-            <DialogHeader className="xs:text-center text-left">
-              <DialogTitle>Enter Coordinates</DialogTitle>
-              <DialogDescription>
-                Please enter the minimum and maximum latitude and longitude
-                coordinates the optimal controlled fire location should be found
-                within.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3">
-              <label htmlFor="minLatitude">Minimum Latitude (0° to 90°)</label>
-              <div className="grid grid-cols-1">
-                <div className="flex gap-2">
-                  <Input
-                    id="minLatitude"
-                    className={`${
-                      coordinateErrors.minLat
-                        ? "border-[1.5px] border-red-500"
-                        : ""
-                    }`}
-                    type="number"
-                    step="any"
-                    min="0"
-                    max="90"
-                    value={minLat}
-                    onChange={(e) => setMinLat(e.target.value)}
-                    placeholder="Enter minimum latitude"
-                  />
-                  <Select
-                    value={minLatDirection}
-                    onValueChange={setMinLatDirection}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem className="hover:cursor-pointer" value="N">
-                        N
-                      </SelectItem>
-                      <SelectItem className="hover:cursor-pointer" value="S">
-                        S
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+          <div className={`${isLoading ? "hidden" : "block"}`}>
+            <DialogContent className="rounded-md max-w-md sm:max-w-lg">
+              <DialogHeader className="xs:text-center text-left">
+                <DialogTitle>Enter Coordinates</DialogTitle>
+                <DialogDescription>
+                  Please enter the minimum and maximum latitude and longitude
+                  coordinates the optimal controlled fire location should be
+                  found within.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-3">
+                <label htmlFor="minLatitude">
+                  Minimum Latitude (0° to 90°)
+                </label>
+                <div className="grid grid-cols-1">
+                  <div className="flex gap-2">
+                    <Input
+                      id="minLatitude"
+                      className={`${
+                        coordinateErrors.minLat
+                          ? "border-[1.5px] border-red-500"
+                          : ""
+                      }`}
+                      type="number"
+                      step="any"
+                      min="0"
+                      max="90"
+                      value={minLat}
+                      onChange={(e) => setMinLat(e.target.value)}
+                      placeholder="Enter minimum latitude"
+                    />
+                    <Select
+                      value={minLatDirection}
+                      onValueChange={setMinLatDirection}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem className="hover:cursor-pointer" value="N">
+                          N
+                        </SelectItem>
+                        <SelectItem className="hover:cursor-pointer" value="S">
+                          S
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {coordinateErrors.minLat && (
+                    <p className="text-sm text-red-500">
+                      {coordinateErrors.minLat}
+                    </p>
+                  )}
                 </div>
-                {coordinateErrors.minLat && (
-                  <p className="text-sm text-red-500">
-                    {coordinateErrors.minLat}
-                  </p>
+
+                <label htmlFor="maxLatitude">
+                  Maximum Latitude (0° to 90°)
+                </label>
+                <div className="grid grid-cols-1">
+                  <div className="flex gap-2">
+                    <Input
+                      id="maxLatitude"
+                      className={`${
+                        coordinateErrors.maxLat
+                          ? "border-[1.5px] border-red-500"
+                          : ""
+                      }`}
+                      type="number"
+                      step="any"
+                      min="0"
+                      max="90"
+                      value={maxLat}
+                      onChange={(e) => setMaxLat(e.target.value)}
+                      placeholder="Enter maximum latitude"
+                    />
+                    <Select
+                      value={maxLatDirection}
+                      onValueChange={setMaxLatDirection}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem className="hover:cursor-pointer" value="N">
+                          N
+                        </SelectItem>
+                        <SelectItem className="hover:cursor-pointer" value="S">
+                          S
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {coordinateErrors.maxLat && (
+                    <p className="text-sm text-red-500">
+                      {coordinateErrors.maxLat}
+                    </p>
+                  )}
+                </div>
+
+                <label htmlFor="minLongitude">
+                  Minimum Longitude (0° to 180°)
+                </label>
+                <div className="grid grid-cols-1">
+                  <div className="flex gap-2">
+                    <Input
+                      id="minLongitude"
+                      className={`${
+                        coordinateErrors.minLon
+                          ? "border-[1.5px] border-red-500"
+                          : ""
+                      }`}
+                      type="number"
+                      step="any"
+                      min="0"
+                      max="180"
+                      value={minLon}
+                      onChange={(e) => setMinLon(e.target.value)}
+                      placeholder="Enter minimum longitude"
+                    />
+                    <Select
+                      value={minLonDirection}
+                      onValueChange={setMinLonDirection}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem className="hover:cursor-pointer" value="E">
+                          E
+                        </SelectItem>
+                        <SelectItem className="hover:cursor-pointer" value="W">
+                          W
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {coordinateErrors.minLon && (
+                    <p className="text-sm text-red-500">
+                      {coordinateErrors.minLon}
+                    </p>
+                  )}
+                </div>
+
+                <label htmlFor="maxLongitude">
+                  Maximum Longitude (0° to 180°)
+                </label>
+                <div className="grid grid-cols-1">
+                  <div className="flex gap-2">
+                    <Input
+                      id="maxLongitude"
+                      className={`${
+                        coordinateErrors.maxLon
+                          ? "border-[1.5px] border-red-500"
+                          : ""
+                      }`}
+                      type="number"
+                      step="any"
+                      min="0"
+                      max="180"
+                      value={maxLon}
+                      onChange={(e) => setMaxLon(e.target.value)}
+                      placeholder="Enter maximum longitude"
+                    />
+                    <Select
+                      value={maxLonDirection}
+                      onValueChange={setMaxLonDirection}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem className="hover:cursor-pointer" value="E">
+                          E
+                        </SelectItem>
+                        <SelectItem className="hover:cursor-pointer" value="W">
+                          W
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {coordinateErrors.maxLon && (
+                    <p className="text-sm text-red-500">
+                      {coordinateErrors.maxLon}
+                    </p>
+                  )}
+                </div>
+
+                {inputError && (
+                  <p className="text-sm text-red-500">{inputError}</p>
                 )}
               </div>
-
-              <label htmlFor="maxLatitude">Maximum Latitude (0° to 90°)</label>
-              <div className="grid grid-cols-1">
-                <div className="flex gap-2">
-                  <Input
-                    id="maxLatitude"
-                    className={`${
-                      coordinateErrors.maxLat
-                        ? "border-[1.5px] border-red-500"
-                        : ""
-                    }`}
-                    type="number"
-                    step="any"
-                    min="0"
-                    max="90"
-                    value={maxLat}
-                    onChange={(e) => setMaxLat(e.target.value)}
-                    placeholder="Enter maximum latitude"
-                  />
-                  <Select
-                    value={maxLatDirection}
-                    onValueChange={setMaxLatDirection}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem className="hover:cursor-pointer" value="N">
-                        N
-                      </SelectItem>
-                      <SelectItem className="hover:cursor-pointer" value="S">
-                        S
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+              <DialogFooter className="gap-y-3">
+                <Button variant="outline" onClick={() => setShowModal(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSubmit}>Submit</Button>
+              </DialogFooter>
+            </DialogContent>
+          </div>
+          <div className={`${isLoading ? "block" : "hidden"}`}>
+            <div className="loading text-gray-200 font-poppins mt-[0.74rem] mr-8 ml-8 pr-8 pl-8 py-6 rounded-lg flex justify-center items-center">
+              <div className="flex flex-col items-center">
+                <div
+                  className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+                  role="status"
+                >
+                  <span className="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]">
+                    Loading...
+                  </span>
                 </div>
-                {coordinateErrors.maxLat && (
-                  <p className="text-sm text-red-500">
-                    {coordinateErrors.maxLat}
-                  </p>
-                )}
+                <p className="mt-4 text-gray-200">
+                  Identifying optimal location, please wait...
+                </p>
               </div>
-
-              <label htmlFor="minLongitude">
-                Minimum Longitude (0° to 180°)
-              </label>
-              <div className="grid grid-cols-1">
-                <div className="flex gap-2">
-                  <Input
-                    id="minLongitude"
-                    className={`${
-                      coordinateErrors.minLon
-                        ? "border-[1.5px] border-red-500"
-                        : ""
-                    }`}
-                    type="number"
-                    step="any"
-                    min="0"
-                    max="180"
-                    value={minLon}
-                    onChange={(e) => setMinLon(e.target.value)}
-                    placeholder="Enter minimum longitude"
-                  />
-                  <Select
-                    value={minLonDirection}
-                    onValueChange={setMinLonDirection}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem className="hover:cursor-pointer" value="E">
-                        E
-                      </SelectItem>
-                      <SelectItem className="hover:cursor-pointer" value="W">
-                        W
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {coordinateErrors.minLon && (
-                  <p className="text-sm text-red-500">
-                    {coordinateErrors.minLon}
-                  </p>
-                )}
-              </div>
-
-              <label htmlFor="maxLongitude">
-                Maximum Longitude (0° to 180°)
-              </label>
-              <div className="grid grid-cols-1">
-                <div className="flex gap-2">
-                  <Input
-                    id="maxLongitude"
-                    className={`${
-                      coordinateErrors.maxLon
-                        ? "border-[1.5px] border-red-500"
-                        : ""
-                    }`}
-                    type="number"
-                    step="any"
-                    min="0"
-                    max="180"
-                    value={maxLon}
-                    onChange={(e) => setMaxLon(e.target.value)}
-                    placeholder="Enter maximum longitude"
-                  />
-                  <Select
-                    value={maxLonDirection}
-                    onValueChange={setMaxLonDirection}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem className="hover:cursor-pointer" value="E">
-                        E
-                      </SelectItem>
-                      <SelectItem className="hover:cursor-pointer" value="W">
-                        W
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {coordinateErrors.maxLon && (
-                  <p className="text-sm text-red-500">
-                    {coordinateErrors.maxLon}
-                  </p>
-                )}
-              </div>
-
-              {inputError && (
-                <p className="text-sm text-red-500">{inputError}</p>
-              )}
             </div>
-            <DialogFooter className="gap-y-3">
-              <Button variant="outline" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSubmit}>Submit</Button>
-            </DialogFooter>
-          </DialogContent>
+          </div>
         </Dialog>
       </div>
     </section>

@@ -67,6 +67,29 @@ type ClusterScore = {
   bestScore: number;
 };
 
+// interface PredictionResult {
+//   success: boolean;
+//   frp?: number;
+//   location?: {
+//     latitude: number;
+//     longitude: number;
+//   };
+//   features_used?: number[];
+//   error?: string;
+// }
+
+interface NasaPowerTemporalData {
+  properties: {
+    parameter: {
+      T2M: Record<string, number>;
+      PRECTOTCORR: Record<string, number>;
+      RH2M: Record<string, number>;
+      ALLSKY_SFC_SW_DWN: Record<string, number>;
+      GWETPROF: Record<string, number>;
+    };
+  };
+}
+
 export async function POST(req: NextRequest) {
   const { minLon, minLat, maxLon, maxLat } = await req.json();
   let cachedToken: string | null = null;
@@ -192,6 +215,7 @@ export async function POST(req: NextRequest) {
     date: Date,
     bufferDegrees: number
   ) => {
+    console.log(`Attempting to get vegetation data for ${lat},${lon}`);
     const { start, end } = getMonthDateRange(date);
 
     const authToken = await getSentinelAuthToken(
@@ -345,6 +369,10 @@ export async function POST(req: NextRequest) {
         if (ndviStats.average < 0.6) return "moderate";
         return "dense";
       };
+
+      console.log(
+        `Successfully got vegetation data: ${JSON.stringify(ndviStats)}`
+      );
 
       return {
         ndviStats,
@@ -549,6 +577,43 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  async function isRuralPoint(lat: number, lon: number): Promise<boolean> {
+    const radiusInMeters = 1609.345;
+
+    const query = `
+    [out:json];
+    (
+      // Look for commercial buildings, retail, industrial areas
+      node["building"="commercial"](around:${radiusInMeters},${lat},${lon});
+      way["building"="commercial"](around:${radiusInMeters},${lat},${lon});
+      node["building"="industrial"](around:${radiusInMeters},${lat},${lon});
+      way["building"="industrial"](around:${radiusInMeters},${lat},${lon});
+      relation["landuse"="industrial"](around:${radiusInMeters},${lat},${lon});
+      relation["landuse"="commercial"](around:${radiusInMeters},${lat},${lon});
+    );
+    out count;
+  `;
+
+    try {
+      const response = await fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        body: query,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const urbanFeatureThreshold = 6;
+      return data.elements.length < urbanFeatureThreshold;
+    } catch (error) {
+      console.error("Error checking if point is rural:", error);
+      return false;
+    }
+  }
+
   async function generateGridPoints(
     minLon: number,
     minLat: number,
@@ -556,9 +621,13 @@ export async function POST(req: NextRequest) {
     maxLat: number,
     count: number
   ) {
+    console.log(
+      `Generating grid with bounds: ${minLon}, ${minLat}, ${maxLon}, ${maxLat}`
+    );
+    console.log(`Target point count: ${count}`);
     const points = [];
 
-    const areaRatio = (maxLon - minLon) / (maxLat - minLat);
+    const areaRatio = Math.abs(maxLon - minLon) / (maxLat - minLat);
     let gridHeight = Math.sqrt(count / areaRatio);
     if (gridHeight - Math.trunc(gridHeight) >= 0.5) {
       gridHeight = Math.ceil(gridHeight);
@@ -566,24 +635,34 @@ export async function POST(req: NextRequest) {
       gridHeight = Math.floor(gridHeight);
     }
 
-    const gridWidth = gridHeight * areaRatio;
+    console.log(maxLon, minLon);
+    console.log(count, areaRatio, count / areaRatio, gridHeight);
 
-    const latStep = (maxLat - minLat) / (gridHeight - 1);
-    const lonStep = (maxLon - minLon) / (gridWidth - 1);
+    const gridWidth = gridHeight * areaRatio;
+    console.log(areaRatio, gridHeight, gridWidth);
+
+    const latStep = (maxLat - minLat) / (gridHeight - 1 || 1);
+    const lonStep = (maxLon - minLon) / (gridWidth - 1 || 1);
+    console.log(latStep, lonStep);
 
     for (let i = 0; i < gridHeight; i++) {
       for (let j = 0; j < gridWidth; j++) {
+        console.log(i, j);
         const point = {
           lat: minLat + i * latStep,
           lon: minLon + j * lonStep,
         };
 
         const isLand = await isLandPoint(point.lat, point.lon);
-        if (isLand) {
+        const isRural = await isRuralPoint(point.lat, point.lon);
+
+        if (isLand && isRural) {
           points.push(point);
         }
       }
     }
+
+    console.log("points", points);
 
     const limitedPoints = points.slice(0, count);
     // const limitedPoints = points;
@@ -642,6 +721,13 @@ export async function POST(req: NextRequest) {
               return 0;
             }
           };
+
+          console.log(
+            weatherData,
+            vegetationData,
+            soilMoisture,
+            await getSlopeData(point.lat.toString(), point.lon.toString())
+          );
 
           if ("soil_moisture" in soilMoisture) {
             return {
@@ -1077,6 +1163,166 @@ export async function POST(req: NextRequest) {
     ).bestPoint;
   };
 
+  // const generateReason = () => {
+  //   return "placeholder reason";
+  // };
+
+  // class FRPPredictionClient {
+  //   private apiUrl: string;
+
+  //   constructor(serverIp: string, port: number = 5000) {
+  //     this.apiUrl = `http://${serverIp}:${port}/predict`;
+  //   }
+
+  //   async generateIntensity(
+  //     lat: number,
+  //     lon: number
+  //   ): Promise<PredictionResult> {
+  //     try {
+  //       const response = await fetch(this.apiUrl, {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //         body: JSON.stringify({ lat, lon }),
+  //       });
+
+  //       if (!response.ok) {
+  //         throw new Error(`HTTP error! Status: ${response.status}`);
+  //       }
+
+  //       return await response.json();
+  //     } catch (error) {
+  //       console.error("FRP prediction failed:", error);
+  //       return {
+  //         success: false,
+  //         error: error instanceof Error ? error.message : String(error),
+  //       };
+  //     }
+  //   }
+  // }
+
+  const findEnvironmentalData = async (lat: number, lon: number) => {
+    try {
+      const start = getFormattedDate(-30);
+      const end = getFormattedDate(0);
+
+      const url = `https://power.larc.nasa.gov/api/temporal/daily/point?start=${parseInt(
+        start
+      )}&end=${parseInt(
+        end
+      )}&latitude=${lat}&longitude=${lon}&community=RE&parameters=T2M,PRECTOTCORR,RH2M,ALLSKY_SFC_SW_DWN,GWETPROF&format=JSON`;
+
+      console.log("NASA POWER API URL:", url);
+
+      const response = await fetch(url);
+      const rawData = await response.text();
+
+      if (!response.ok) {
+        console.error(
+          "API Error:",
+          response.status,
+          response.statusText,
+          rawData
+        );
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+
+      const data = JSON.parse(rawData);
+
+      return processNasaPowerData(data);
+    } catch (error) {
+      console.error("Error fetching NASA POWER data:", error);
+      throw error;
+    }
+  };
+
+  const getFormattedDate = (daysOffset = 0) => {
+    const date = new Date();
+    date.setDate(date.getDate() + daysOffset);
+
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
+    const day = date.getDate().toString().padStart(2, "0");
+
+    return `${year}${month}${day}`;
+  };
+
+  const processNasaPowerData = (rawData: NasaPowerTemporalData) => {
+    const result = {
+      temperature: rawData.properties.parameter.T2M,
+      precipitation: rawData.properties.parameter.PRECTOTCORR,
+      humidity: rawData.properties.parameter.RH2M,
+      solarRadiation: rawData.properties.parameter.ALLSKY_SFC_SW_DWN,
+      soilMoisture: rawData.properties.parameter.GWETPROF,
+    };
+
+    return result;
+  };
+
+  async function generateIntensity(
+    lat: number,
+    tempData: Record<string, number>,
+    precipData: Record<string, number>,
+    humidityData: Record<string, number>,
+    solarData: Record<string, number>,
+    soilData: Record<string, number>
+  ): Promise<number> {
+    try {
+      const temp = getMostRecentValidValue(tempData);
+      const precip = getMostRecentValidValue(precipData);
+      const humidity = getMostRecentValidValue(humidityData);
+      const solar = getMostRecentValidValue(solarData);
+      const soil = getMostRecentValidValue(soilData);
+
+      console.log("Extracted data:", {
+        lat,
+        temp,
+        precip,
+        humidity,
+        solar,
+        soil,
+      });
+
+      const response = await fetch("http://localhost:5001/predict", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([lat, temp, precip, humidity, solar, soil]),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Unknown prediction error");
+      }
+
+      return result.prediction[0];
+    } catch (error) {
+      console.error("Prediction failed:", error);
+      throw error;
+    }
+  }
+
+  function getMostRecentValidValue(data: Record<string, number>): number {
+    const dates = Object.keys(data).sort().reverse();
+
+    for (const date of dates) {
+      const value = data[date];
+      if (value !== -999 && !isNaN(value)) {
+        return value;
+      }
+    }
+
+    console.warn("No valid data found, using default value");
+    return 0;
+  }
+
   try {
     console.log("Reached try block");
     let location = { lat: 0, lon: 0 };
@@ -1097,10 +1343,34 @@ export async function POST(req: NextRequest) {
     location = findOptimalPoint(clusterScores);
     console.log(location);
 
+    const locationData = await findEnvironmentalData(
+      location.lat,
+      location.lon
+    );
+
+    // const reason = generateReason();
+
+    // const serverIp = process.env.SERVER_IP || "";
+
+    // const frpClient = new FRPPredictionClient(serverIp);
+    // const intensity = await frpClient.generateIntensity(
+    //   location.lat,
+    //   location.lon
+    // );
+    const intensity = await generateIntensity(
+      location.lat,
+      locationData.temperature,
+      locationData.precipitation,
+      locationData.humidity,
+      locationData.solarRadiation,
+      locationData.soilMoisture
+    );
+
     return NextResponse.json({
       locationName: environmentalData[0].location,
       location,
-      reason: "placeholder reason text",
+      // reason,
+      intensity,
       status: 200,
     });
   } catch (error) {

@@ -11,7 +11,7 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed flex z-50 bg-[#964448]/60 backdrop-blur-md items-center justify-between top-0 p-4 w-full h-20">
+    <header className="fixed flex z-50 bg-[#5c9bc7]/70 backdrop-blur-md items-center justify-between top-0 p-4 w-full h-20">
       <div className="flex items-center">
         <Image
           className="ml-5 mr-4"
@@ -20,7 +20,7 @@ const Header = () => {
           width={27}
           height={27}
         />
-        <h1 className="text-2xl font-bold">Inferno</h1>
+        <h1 className="text-2xl font-bold">Hydra</h1>
       </div>
       <div className="hidden sm:flex sm:items-center md:justify-normal">
         <div className="hidden sm:flex absolute sm:left-[82%] md:left-1/2 sm:transform sm:-translate-x-1/2">
