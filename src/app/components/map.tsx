@@ -195,6 +195,33 @@ const Map = () => {
     }
   };
 
+  const downloadMapImage = async () => {
+    const imageUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${
+      mapCenter.lat
+    },${mapCenter.lng}&zoom=${zoom}&size=600x400&maptype=roadmap&marker=${
+      optimalLocation
+        ? `&markers=color:red%7Clabel:O%7C${optimalLocation.coordinates[1]},${optimalLocation.coordinates[0]}`
+        : ""
+    }&path=${
+      selectedBounds
+        ? `&path=fillcolor:0xFF000033|color:0xFF000080|weight:2${selectedBounds.coordinates
+            .map((coord) => `|${coord.lat},${coord.lng}`)
+            .join("")}`
+        : ""
+    }&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+    console.log("imageUrl", imageUrl);
+
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "map.png";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <section id="map" className="mt-0 xs:mt-40">
       <h1 className="px-6 sm:px-12 lg:px-24 text-3xl mt-[3.75rem] sm:text-4xl font-bold">
@@ -215,6 +242,13 @@ const Map = () => {
               variant="outline"
             >
               Enter Coordinates
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 border-2 border-blue-400 text-gray-300 hover:text-gray-300 rounded-lg"
+              onClick={downloadMapImage}
+              variant="outline"
+            >
+              Download Map
             </Button>
             {/* <Button
               className="bg-blue-600 hover:bg-blue-700 border-2 border-blue-400 text-gray-300 hover:text-gray-300 w-full rounded-lg"
