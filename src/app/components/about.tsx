@@ -29,22 +29,31 @@ const About = () => {
             <p className="text-sm sm:text-base">
               Hydra is an innovative app designed to tackle the challenges
               wildfires pose. These natural disasters threaten both ecosystems
-              and human communities, and, while controlled burns mitigate risks
-              and promote ecological health effectively, identifying the best
-              locations for these burns remains a complex task. Hydra leverages
-              historical data and cutting-edge predictive models to empower
-              forest managers and even common citizens with accurate,
-              data-driven recommendations for controlled burns. Inspired by
-              research like that of Coffield et al. (2022), which highlights the
-              potential of machine learning to enhance wildfire prediction, our
-              app integrates several environmental variables such as type and
-              density of vegetation, soil moisture, wind speed and direction,
-              temperature and humidity, topography into an intuitive platform.
-              Not only does Hydra offer optimal locations on where to start a
-              controlled burn, it additionally provides a map displaying the
-              risk of wildfires globally. We created Hydra due to its
-              originality in the world of science as well as its utility as a
-              beneficial product.
+              and human communities, and in 2024 alone, the United States
+              experienced 64,897 wildfires, scorching approximately 8.9 million
+              acres, resulting in $275 billion of economic losses, the
+              destruction of 16,200 structures, and untold human tragedy. While
+              controlled burns mitigate risks and promote ecological health
+              effectively, reducing the likelihood of a catastrophic wildfire by
+              68%, identifying the optimal locations for these controlled burns
+              remains a complex task. Inspired by research like that of Coffield
+              et al. (2022), which highlights the potential of machine learning
+              to enhance wildfire prediction, our app integrates several
+              environmental variables such as type and density of vegetation,
+              soil moisture, wind speed and direction, temperature and humidity,
+              topography with historical data into an intuitive platform that
+              provides data-driven recommendations about the optimal location
+              for a controlled burn within a given region. Not only does Hydra
+              identify the optimal location for a controlled fire, but it also
+              predicts its FRP (Fire Radiative Power) as a measure of intensity
+              through an ML XGB Boost prediction model, allowing firefighters
+              and forestry officials to understand whether a location is
+              suitable for a controlled burn or if such a fire would be too
+              intense to effectively manage. Furthermore, Hydra is a
+              one-of-a-kind tool, unparalleled in the world of wildfire
+              management. Hydra ultimately achieved a ~90.3% accuracy in
+              identifying the optimal location for a controlled fire and serves
+              as an extremely beneficial product.
             </p>
           </div>
         </div>

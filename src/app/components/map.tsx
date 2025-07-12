@@ -149,10 +149,13 @@ const Map = () => {
           { lat: signedMinLat, lng: signedMaxLon },
         ];
 
+        console.log("Coordinates parsed");
+
         setSelectedBounds({
           coordinates: polygonCoordinates,
         });
 
+        console.log("isLoading set to true");
         setIsLoading(true);
 
         const response = await fetch("/api/controlledFire", {
@@ -165,8 +168,6 @@ const Map = () => {
             maxLon: signedMaxLon,
           }),
         });
-
-        setIsLoading(false);
 
         const data = await response.json();
         console.log("data", data, "location", {
@@ -182,10 +183,14 @@ const Map = () => {
         setMapCenter({ lat: data.location.lat, lng: data.location.lon });
         setZoom(8);
         setShowModal(false);
+
+        console.log("isLoading set to false");
+        setIsLoading(false);
       } catch (error) {
         console.error("Error:", error);
         setCoordinateErrors({});
         setInputError("Failed to process request. Please try again.");
+        setIsLoading(false);
       }
     }
   };
@@ -321,208 +326,233 @@ const Map = () => {
         </div>
 
         <Dialog open={showModal} onOpenChange={setShowModal}>
-          <div className={`${isLoading ? "hidden" : "block"}`}>
-            <DialogContent className="rounded-md max-w-md sm:max-w-lg">
-              <DialogHeader className="xs:text-center text-left">
-                <DialogTitle>Enter Coordinates</DialogTitle>
-                <DialogDescription>
-                  Please enter the minimum and maximum latitude and longitude
-                  coordinates the optimal controlled fire location should be
-                  found within.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-3">
-                <label htmlFor="minLatitude">
-                  Minimum Latitude (0° to 90°)
-                </label>
-                <div className="grid grid-cols-1">
-                  <div className="flex gap-2">
-                    <Input
-                      id="minLatitude"
-                      className={`${
-                        coordinateErrors.minLat
-                          ? "border-[1.5px] border-red-500"
-                          : ""
-                      }`}
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="90"
-                      value={minLat}
-                      onChange={(e) => setMinLat(e.target.value)}
-                      placeholder="Enter minimum latitude"
-                    />
-                    <Select
-                      value={minLatDirection}
-                      onValueChange={setMinLatDirection}
-                    >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem className="hover:cursor-pointer" value="N">
-                          N
-                        </SelectItem>
-                        <SelectItem className="hover:cursor-pointer" value="S">
-                          S
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+          <DialogContent className="rounded-md max-w-md sm:max-w-lg">
+            {!isLoading ? (
+              <>
+                <DialogHeader className="xs:text-center text-left">
+                  <DialogTitle>Enter Coordinates</DialogTitle>
+                  <DialogDescription>
+                    Please enter the minimum and maximum latitude and longitude
+                    coordinates the optimal controlled fire location should be
+                    found within.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  <label htmlFor="minLatitude">
+                    Minimum Latitude (0° to 90°)
+                  </label>
+                  <div className="grid grid-cols-1">
+                    <div className="flex gap-2">
+                      <Input
+                        id="minLatitude"
+                        className={`${
+                          coordinateErrors.minLat
+                            ? "border-[1.5px] border-red-500"
+                            : ""
+                        }`}
+                        type="number"
+                        step="any"
+                        min="0"
+                        max="90"
+                        value={minLat}
+                        onChange={(e) => setMinLat(e.target.value)}
+                        placeholder="Enter minimum latitude"
+                      />
+                      <Select
+                        value={minLatDirection}
+                        onValueChange={setMinLatDirection}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="N"
+                          >
+                            N
+                          </SelectItem>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="S"
+                          >
+                            S
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {coordinateErrors.minLat && (
+                      <p className="text-sm text-red-500">
+                        {coordinateErrors.minLat}
+                      </p>
+                    )}
                   </div>
-                  {coordinateErrors.minLat && (
-                    <p className="text-sm text-red-500">
-                      {coordinateErrors.minLat}
-                    </p>
+
+                  <label htmlFor="maxLatitude">
+                    Maximum Latitude (0° to 90°)
+                  </label>
+                  <div className="grid grid-cols-1">
+                    <div className="flex gap-2">
+                      <Input
+                        id="maxLatitude"
+                        className={`${
+                          coordinateErrors.maxLat
+                            ? "border-[1.5px] border-red-500"
+                            : ""
+                        }`}
+                        type="number"
+                        step="any"
+                        min="0"
+                        max="90"
+                        value={maxLat}
+                        onChange={(e) => setMaxLat(e.target.value)}
+                        placeholder="Enter maximum latitude"
+                      />
+                      <Select
+                        value={maxLatDirection}
+                        onValueChange={setMaxLatDirection}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="N"
+                          >
+                            N
+                          </SelectItem>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="S"
+                          >
+                            S
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {coordinateErrors.maxLat && (
+                      <p className="text-sm text-red-500">
+                        {coordinateErrors.maxLat}
+                      </p>
+                    )}
+                  </div>
+
+                  <label htmlFor="minLongitude">
+                    Minimum Longitude (0° to 180°)
+                  </label>
+                  <div className="grid grid-cols-1">
+                    <div className="flex gap-2">
+                      <Input
+                        id="minLongitude"
+                        className={`${
+                          coordinateErrors.minLon
+                            ? "border-[1.5px] border-red-500"
+                            : ""
+                        }`}
+                        type="number"
+                        step="any"
+                        min="0"
+                        max="180"
+                        value={minLon}
+                        onChange={(e) => setMinLon(e.target.value)}
+                        placeholder="Enter minimum longitude"
+                      />
+                      <Select
+                        value={minLonDirection}
+                        onValueChange={setMinLonDirection}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="E"
+                          >
+                            E
+                          </SelectItem>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="W"
+                          >
+                            W
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {coordinateErrors.minLon && (
+                      <p className="text-sm text-red-500">
+                        {coordinateErrors.minLon}
+                      </p>
+                    )}
+                  </div>
+
+                  <label htmlFor="maxLongitude">
+                    Maximum Longitude (0° to 180°)
+                  </label>
+                  <div className="grid grid-cols-1">
+                    <div className="flex gap-2">
+                      <Input
+                        id="maxLongitude"
+                        className={`${
+                          coordinateErrors.maxLon
+                            ? "border-[1.5px] border-red-500"
+                            : ""
+                        }`}
+                        type="number"
+                        step="any"
+                        min="0"
+                        max="180"
+                        value={maxLon}
+                        onChange={(e) => setMaxLon(e.target.value)}
+                        placeholder="Enter maximum longitude"
+                      />
+                      <Select
+                        value={maxLonDirection}
+                        onValueChange={setMaxLonDirection}
+                      >
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="E"
+                          >
+                            E
+                          </SelectItem>
+                          <SelectItem
+                            className="hover:cursor-pointer"
+                            value="W"
+                          >
+                            W
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {coordinateErrors.maxLon && (
+                      <p className="text-sm text-red-500">
+                        {coordinateErrors.maxLon}
+                      </p>
+                    )}
+                  </div>
+
+                  {inputError && (
+                    <p className="text-sm text-red-500">{inputError}</p>
                   )}
                 </div>
-
-                <label htmlFor="maxLatitude">
-                  Maximum Latitude (0° to 90°)
-                </label>
-                <div className="grid grid-cols-1">
-                  <div className="flex gap-2">
-                    <Input
-                      id="maxLatitude"
-                      className={`${
-                        coordinateErrors.maxLat
-                          ? "border-[1.5px] border-red-500"
-                          : ""
-                      }`}
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="90"
-                      value={maxLat}
-                      onChange={(e) => setMaxLat(e.target.value)}
-                      placeholder="Enter maximum latitude"
-                    />
-                    <Select
-                      value={maxLatDirection}
-                      onValueChange={setMaxLatDirection}
-                    >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem className="hover:cursor-pointer" value="N">
-                          N
-                        </SelectItem>
-                        <SelectItem className="hover:cursor-pointer" value="S">
-                          S
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {coordinateErrors.maxLat && (
-                    <p className="text-sm text-red-500">
-                      {coordinateErrors.maxLat}
-                    </p>
-                  )}
-                </div>
-
-                <label htmlFor="minLongitude">
-                  Minimum Longitude (0° to 180°)
-                </label>
-                <div className="grid grid-cols-1">
-                  <div className="flex gap-2">
-                    <Input
-                      id="minLongitude"
-                      className={`${
-                        coordinateErrors.minLon
-                          ? "border-[1.5px] border-red-500"
-                          : ""
-                      }`}
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="180"
-                      value={minLon}
-                      onChange={(e) => setMinLon(e.target.value)}
-                      placeholder="Enter minimum longitude"
-                    />
-                    <Select
-                      value={minLonDirection}
-                      onValueChange={setMinLonDirection}
-                    >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem className="hover:cursor-pointer" value="E">
-                          E
-                        </SelectItem>
-                        <SelectItem className="hover:cursor-pointer" value="W">
-                          W
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {coordinateErrors.minLon && (
-                    <p className="text-sm text-red-500">
-                      {coordinateErrors.minLon}
-                    </p>
-                  )}
-                </div>
-
-                <label htmlFor="maxLongitude">
-                  Maximum Longitude (0° to 180°)
-                </label>
-                <div className="grid grid-cols-1">
-                  <div className="flex gap-2">
-                    <Input
-                      id="maxLongitude"
-                      className={`${
-                        coordinateErrors.maxLon
-                          ? "border-[1.5px] border-red-500"
-                          : ""
-                      }`}
-                      type="number"
-                      step="any"
-                      min="0"
-                      max="180"
-                      value={maxLon}
-                      onChange={(e) => setMaxLon(e.target.value)}
-                      placeholder="Enter maximum longitude"
-                    />
-                    <Select
-                      value={maxLonDirection}
-                      onValueChange={setMaxLonDirection}
-                    >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem className="hover:cursor-pointer" value="E">
-                          E
-                        </SelectItem>
-                        <SelectItem className="hover:cursor-pointer" value="W">
-                          W
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {coordinateErrors.maxLon && (
-                    <p className="text-sm text-red-500">
-                      {coordinateErrors.maxLon}
-                    </p>
-                  )}
-                </div>
-
-                {inputError && (
-                  <p className="text-sm text-red-500">{inputError}</p>
-                )}
-              </div>
-              <DialogFooter className="gap-y-3">
-                <Button variant="outline" onClick={() => setShowModal(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSubmit}>Submit</Button>
-              </DialogFooter>
-            </DialogContent>
-          </div>
-          <div className={`${isLoading ? "block" : "hidden"}`}>
-            <div className="loading text-gray-200 font-poppins mt-[0.74rem] mr-8 ml-8 pr-8 pl-8 py-6 rounded-lg flex justify-center items-center">
-              <div className="flex flex-col items-center">
+                <DialogFooter className="gap-y-3">
+                  <Button variant="outline" onClick={() => setShowModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSubmit} disabled={isLoading}>
+                    Submit
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : (
+              <div className="flex flex-col items-center py-8">
                 <div
                   className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-purple-400 border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
                   role="status"
@@ -531,12 +561,12 @@ const Map = () => {
                     Loading...
                   </span>
                 </div>
-                <p className="mt-4 text-gray-200">
+                <p className="mt-4 text-gray-600">
                   Identifying optimal location, please wait...
                 </p>
               </div>
-            </div>
-          </div>
+            )}
+          </DialogContent>
         </Dialog>
       </div>
     </section>
