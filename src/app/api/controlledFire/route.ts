@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
   function determineSampleCount(areaSize: number): number {
     const baseDensity = 100;
     const suggestedCount = Math.ceil((areaSize / 100) * baseDensity);
-    return Math.min(Math.max(100, suggestedCount), 400);
+    return Math.min(Math.max(20, suggestedCount), 400);
   }
 
   const formatDate = (date: Date) => {
@@ -259,7 +259,7 @@ export async function POST(req: NextRequest) {
     date: Date,
     bufferDegrees: number
   ) => {
-    console.log(`Attempting to get vegetation data for ${lat},${lon}`);
+    // console.log(`Attempting to get vegetation data for ${lat},${lon}`);
     const { start, end } = getMonthDateRange(date);
 
     const authToken = await getSentinelAuthToken(
@@ -414,9 +414,9 @@ export async function POST(req: NextRequest) {
         return "dense";
       };
 
-      console.log(
-        `Successfully got vegetation data: ${JSON.stringify(ndviStats)}`
-      );
+      // console.log(
+      //   `Successfully got vegetation data: ${JSON.stringify(ndviStats)}`
+      // );
 
       return {
         ndviStats,
@@ -607,12 +607,12 @@ export async function POST(req: NextRequest) {
       );
 
       if (!response.ok) {
-        console.warn(`Is-on-water API error for point ${lat},${lon}`);
+        // console.warn(`Is-on-water API error for point ${lat},${lon}`);
         return false;
       }
 
       const data = await response.json();
-      console.log(!data.isWater === true);
+      // console.log(!data.isWater === true);
 
       return !data.isWater === true;
     } catch (error) {
@@ -714,11 +714,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log(
-      `Generating grid with bounds: ${minLon}, ${minLat}, ${maxLon}, ${maxLat}`
-    );
-    console.log(`Target point count: ${count}`);
-    const points = [];
+    // console.log(
+    //   `Generating grid with bounds: ${minLon}, ${minLat}, ${maxLon}, ${maxLat}`
+    // );
+    // console.log(`Target point count: ${count}`);
 
     const areaRatio = Math.abs(maxLon - minLon) / (maxLat - minLat);
     let gridHeight = Math.sqrt(count / areaRatio);
@@ -728,46 +727,99 @@ export async function POST(req: NextRequest) {
       gridHeight = Math.floor(gridHeight);
     }
 
-    console.log(maxLon, minLon);
-    console.log(count, areaRatio, count / areaRatio, gridHeight);
+    // console.log(maxLon, minLon);
+    // console.log(count, areaRatio, count / areaRatio, gridHeight);
 
     const gridWidth = gridHeight * areaRatio;
-    console.log(areaRatio, gridHeight, gridWidth);
+    // console.log(areaRatio, gridHeight, gridWidth);
 
     const latStep = (maxLat - minLat) / (gridHeight - 1 || 1);
     const lonStep = (maxLon - minLon) / (gridWidth - 1 || 1);
-    console.log(latStep, lonStep);
+    // console.log(latStep, lonStep);
+
+    let points = [];
 
     for (let i = 0; i < gridHeight; i++) {
       for (let j = 0; j < gridWidth; j++) {
-        console.log(i, j);
-        const point = {
+        // console.log(i, j);
+        points.push({
           lat: minLat + i * latStep,
           lon: minLon + j * lonStep,
-        };
+        });
+      }
+    }
 
-        const isLand = await isLandPoint(point.lat, point.lon);
-        const isRural = await isRuralPoint(point.lat, point.lon);
+    function pLimit(concurrency: number) {
+      let activeCount = 0;
+      const queue: (() => void)[] = [];
+      const next = () => {
+        if (queue.length > 0 && activeCount < concurrency) {
+          activeCount++;
+          const fn = queue.shift();
+          if (fn) fn();
+        }
+      };
+      return async <T>(fn: () => Promise<T>): Promise<T> => {
+        return new Promise<T>((resolve, reject) => {
+          queue.push(() => {
+            fn()
+              .then(resolve)
+              .catch(reject)
+              .finally(() => {
+                activeCount--;
+                next();
+              });
+          });
+          next();
+        });
+      };
+    }
+
+    const limitLand = pLimit(13);
+    const limitRural = pLimit(6);
+
+    const filteredPoints = await Promise.all(
+      points.map(async (point) => {
+        const isLandPromise = limitLand(() =>
+          isLandPoint(point.lat, point.lon)
+        );
+        const isRuralPromise = limitRural(() =>
+          isRuralPoint(point.lat, point.lon)
+        );
+        const [isLand, isRural] = await Promise.all([
+          isLandPromise,
+          isRuralPromise,
+        ]);
         const isInside = isPointInPolygon(
           point.lat,
           point.lon,
           coordinates || undefined
         );
-
-        if (isLand && isRural && isInside) {
-          points.push(point);
-        }
-      }
-    }
-
-    console.log("points", points);
-
+        return isLand && isRural && isInside ? point : null;
+      })
+    );
+    points = filteredPoints.filter(Boolean);
+    // console.log("points", points);
     const limitedPoints = points.slice(0, count);
     // const limitedPoints = points;
 
     try {
       const environmentalPoints = await Promise.all(
         limitedPoints.map(async (point) => {
+          if (!point) {
+            return {
+              point: { lat: 0, lon: 0 },
+              location: "Unknown",
+              temperature: 0,
+              humidity: 0,
+              windSpeed: 0,
+              windDirection: 0,
+              vegetationDensity: 0,
+              soilMoisture: { surface: -999, rootZone: -999, profile: -999 },
+              topography: { slope: 0 },
+            };
+          }
+
           const vegetationData = await getVegetationData(
             point.lat,
             point.lon,
@@ -820,12 +872,12 @@ export async function POST(req: NextRequest) {
             }
           };
 
-          console.log(
-            weatherData,
-            vegetationData,
-            soilMoisture,
-            await getSlopeData(point.lat.toString(), point.lon.toString())
+          const slope = await getSlopeData(
+            point.lat.toString(),
+            point.lon.toString()
           );
+
+          // console.log(weatherData, vegetationData, soilMoisture, slope);
 
           if ("soil_moisture" in soilMoisture) {
             return {
@@ -842,10 +894,7 @@ export async function POST(req: NextRequest) {
                 profile: soilMoisture.soil_moisture.profile,
               },
               topography: {
-                slope: await getSlopeData(
-                  point.lat.toString(),
-                  point.lon.toString()
-                ),
+                slope: slope,
               },
             };
           } else {
@@ -873,7 +922,7 @@ export async function POST(req: NextRequest) {
         })
       );
 
-      console.log(environmentalPoints);
+      // console.log(environmentalPoints);
       return environmentalPoints;
     } catch (error) {
       console.error("Error generating environmental points:", error);
@@ -961,45 +1010,11 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  function findEnvironmentalClusters(
-    data: EnvironmentalData[],
-    maxClusterRadius: number = 5,
-    minPointsPerCluster: number = 5
-  ): Cluster[] {
-    const clusters: Cluster[] = [];
-    const unvisited = [...data];
-
-    while (unvisited.length > 0) {
-      const current = unvisited[0];
-      const clusterPoints = [current];
-      unvisited.splice(0, 1);
-
-      for (let i = unvisited.length - 1; i >= 0; i--) {
-        const point = unvisited[i];
-        if (calculateDistance(current.point, point.point) <= maxClusterRadius) {
-          clusterPoints.push(point);
-          unvisited.splice(i, 1);
-        }
-      }
-
-      if (clusterPoints.length >= minPointsPerCluster) {
-        clusters.push({
-          points: clusterPoints,
-          center: calculateClusterCenter(clusterPoints),
-          averageConditions: calculateAverageConditions(clusterPoints),
-        });
-      }
-    }
-
-    return clusters;
-  }
-
   const findClusterScores = (clusters: Cluster[]): ClusterScore[] => {
-    console.log("test");
     return clusters.map((cluster) => {
-      console.log(cluster);
+      // console.log(cluster);
       const pointScores = cluster.points.map((point) => {
-        console.log(point);
+        // console.log(point);
         let score = 0;
         // let multifactor = false;
 
@@ -1148,7 +1163,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        console.log(priority);
+        // console.log(priority);
 
         score +=
           Math.max(
@@ -1234,7 +1249,7 @@ export async function POST(req: NextRequest) {
         //   }
         // }
 
-        console.log(score);
+        // console.log(score);
 
         return {
           point: { lat: point.point.lat, lon: point.point.lon },
@@ -1246,7 +1261,7 @@ export async function POST(req: NextRequest) {
         current.score > best.score ? current : best
       );
 
-      console.log(bestPoint);
+      // console.log(bestPoint);
 
       return {
         bestPoint: bestPoint.point,
@@ -1254,6 +1269,39 @@ export async function POST(req: NextRequest) {
       };
     });
   };
+
+  function findEnvironmentalClusters(
+    data: EnvironmentalData[],
+    maxClusterRadius: number = 5,
+    minPointsPerCluster: number = 5
+  ): Cluster[] {
+    const clusters: Cluster[] = [];
+    const unvisited = [...data];
+
+    while (unvisited.length > 0) {
+      const current = unvisited[0];
+      const clusterPoints = [current];
+      unvisited.splice(0, 1);
+
+      for (let i = unvisited.length - 1; i >= 0; i--) {
+        const point = unvisited[i];
+        if (calculateDistance(current.point, point.point) <= maxClusterRadius) {
+          clusterPoints.push(point);
+          unvisited.splice(i, 1);
+        }
+      }
+
+      if (clusterPoints.length >= minPointsPerCluster) {
+        clusters.push({
+          points: clusterPoints,
+          center: calculateClusterCenter(clusterPoints),
+          averageConditions: calculateAverageConditions(clusterPoints),
+        });
+      }
+    }
+
+    return clusters;
+  }
 
   const findOptimalPoint = (clusterScores: ClusterScore[]) => {
     return clusterScores.reduce((best, current) =>
@@ -1311,7 +1359,7 @@ export async function POST(req: NextRequest) {
         end
       )}&latitude=${lat}&longitude=${lon}&community=RE&parameters=T2M,PRECTOTCORR,RH2M,ALLSKY_SFC_SW_DWN,GWETPROF&format=JSON`;
 
-      console.log("NASA POWER API URL:", url);
+      // console.log("NASA POWER API URL:", url);
 
       const response = await fetch(url);
       const rawData = await response.text();
@@ -1373,14 +1421,14 @@ export async function POST(req: NextRequest) {
       const solar = getMostRecentValidValue(solarData);
       const soil = getMostRecentValidValue(soilData);
 
-      console.log("Extracted data:", {
-        lat,
-        temp,
-        precip,
-        humidity,
-        solar,
-        soil,
-      });
+      // console.log("Extracted data:", {
+      //   lat,
+      //   temp,
+      //   precip,
+      //   humidity,
+      //   solar,
+      //   soil,
+      // });
 
       const response = await fetch("/api/predict", {
         method: "POST",
@@ -1422,9 +1470,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    console.log("Reached try block");
     let location = { lat: 0, lon: 0 };
-    console.log(location);
+    // console.log(location);
 
     let environmentalData;
 
@@ -1455,13 +1502,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(environmentalData);
+    // console.log(environmentalData);
 
     const clusters = findEnvironmentalClusters(environmentalData);
-    console.log(clusters);
+    // console.log(clusters);
     const clusterScores = findClusterScores(clusters);
     location = findOptimalPoint(clusterScores);
-    console.log(location);
+    // console.log(location);
 
     const locationData = await findEnvironmentalData(
       location.lat,
