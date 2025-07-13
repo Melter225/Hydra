@@ -91,7 +91,32 @@ interface NasaPowerTemporalData {
 }
 
 export async function POST(req: NextRequest) {
-  const { minLon, minLat, maxLon, maxLat } = await req.json();
+  const body = await req.json();
+
+  let {
+    minLat,
+    maxLat,
+    minLon,
+    maxLon,
+  }: {
+    minLat: number | undefined;
+    maxLat: number | undefined;
+    minLon: number | undefined;
+    maxLon: number | undefined;
+  } = {
+    minLat: undefined,
+    maxLat: undefined,
+    minLon: undefined,
+    maxLon: undefined,
+  };
+  let coordinates: { lat: number; lng: number }[] | undefined = undefined;
+
+  if (body.minLat && body.minLon && body.maxLat && body.maxLon) {
+    ({ minLat, maxLat, minLon, maxLon } = body);
+  } else {
+    coordinates = body.coordinates;
+  }
+
   let cachedToken: string | null = null;
   let tokenExpiryTime: number | null = null;
   let isTokenRefreshing = false;
@@ -100,11 +125,30 @@ export async function POST(req: NextRequest) {
   // console.log(minLon, minLat, maxLon, maxLat);
 
   function calculateAreaSize(
-    minLon: number,
-    minLat: number,
-    maxLon: number,
-    maxLat: number
+    minLon?: number,
+    minLat?: number,
+    maxLon?: number,
+    maxLat?: number,
+    coordinates?: { lat: number; lng: number }[]
   ): number {
+    if (!minLon || !minLat || !maxLon || !maxLat) {
+      if (coordinates) {
+        let lats = coordinates.map((coord) => coord.lat);
+        let lons = coordinates.map((coord) => coord.lng);
+        lats = lats.sort((a, b) => a - b);
+        lons = lons.sort((a, b) => a - b);
+
+        minLon = 0.5 * (lons[0] + lons[1]);
+        minLat = 0.5 * (lats[0] + lats[1]);
+        maxLon = 0.5 * (lons[lons.length - 2] + lons[lons.length - 1]);
+        maxLat = 0.5 * (lats[lats.length - 2] + lats[lats.length - 1]);
+      } else {
+        throw new Error(
+          "Either coordinates or bounding box (minLon, minLat, maxLon, maxLat) must be provided"
+        );
+      }
+    }
+
     const latDistance = (maxLat - minLat) * 111;
     const lonDistance =
       (maxLon - minLon) *
@@ -614,13 +658,62 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const isPointInPolygon = (
+    lat: number,
+    lon: number,
+    coordinates?: { lat: number; lng: number }[]
+  ) => {
+    if (!coordinates || coordinates.length < 4) {
+      return true;
+    }
+
+    let inside = false;
+    const x = lon;
+    const y = lat;
+
+    for (
+      let i = 0, j = coordinates.length - 1;
+      i < coordinates.length;
+      j = i, i++
+    ) {
+      const xi = coordinates[i].lng;
+      const yi = coordinates[i].lat;
+      const xj = coordinates[j].lng;
+      const yj = coordinates[j].lat;
+
+      if (xi === x && yi === y) {
+        return true;
+      }
+
+      if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  };
+
   async function generateGridPoints(
-    minLon: number,
-    minLat: number,
-    maxLon: number,
-    maxLat: number,
-    count: number
+    count: number,
+    minLon?: number,
+    minLat?: number,
+    maxLon?: number,
+    maxLat?: number,
+    coordinates?: { lat: number; lng: number }[]
   ) {
+    if (!minLon || !minLat || !maxLon || !maxLat) {
+      if (coordinates) {
+        minLon = Math.min(...coordinates.map((c) => c.lng));
+        minLat = Math.min(...coordinates.map((c) => c.lat));
+        maxLon = Math.max(...coordinates.map((c) => c.lng));
+        maxLat = Math.max(...coordinates.map((c) => c.lat));
+      } else {
+        throw new Error(
+          "Either coordinates or bounding box (minLon, minLat, maxLon, maxLat) must be provided"
+        );
+      }
+    }
+
     console.log(
       `Generating grid with bounds: ${minLon}, ${minLat}, ${maxLon}, ${maxLat}`
     );
@@ -655,8 +748,13 @@ export async function POST(req: NextRequest) {
 
         const isLand = await isLandPoint(point.lat, point.lon);
         const isRural = await isRuralPoint(point.lat, point.lon);
+        const isInside = isPointInPolygon(
+          point.lat,
+          point.lon,
+          coordinates || undefined
+        );
 
-        if (isLand && isRural) {
+        if (isLand && isRural && isInside) {
           points.push(point);
         }
       }
@@ -1328,13 +1426,35 @@ export async function POST(req: NextRequest) {
     let location = { lat: 0, lon: 0 };
     console.log(location);
 
-    const environmentalData = await generateGridPoints(
-      minLon,
-      minLat,
-      maxLon,
-      maxLat,
-      determineSampleCount(calculateAreaSize(minLon, minLat, maxLon, maxLat))
-    );
+    let environmentalData;
+
+    if (minLon && minLat && maxLon && maxLat) {
+      environmentalData = await generateGridPoints(
+        determineSampleCount(calculateAreaSize(minLon, minLat, maxLon, maxLat)),
+        minLon,
+        minLat,
+        maxLon,
+        maxLat
+      );
+    } else {
+      environmentalData = await generateGridPoints(
+        determineSampleCount(
+          calculateAreaSize(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            coordinates
+          )
+        ),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        coordinates
+      );
+    }
+
     console.log(environmentalData);
 
     const clusters = findEnvironmentalClusters(environmentalData);

@@ -72,7 +72,12 @@ const Map = () => {
   const [zoom, setZoom] = useState(3);
   const [mapCenter, setMapCenter] = useState({ lat: 0, lng: 0 });
   const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [isMapLoaded2, setIsMapLoaded2] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [clickedMarkers, setClickedMarkers] = useState<SearchBounds>({
+    coordinates: [],
+  });
 
   const containerStyle = {
     width: "100%",
@@ -133,21 +138,36 @@ const Map = () => {
   const handleSubmit = async () => {
     if (validateCoordinates()) {
       try {
-        const signedMinLat =
-          minLatDirection === "S" ? -parseFloat(minLat) : parseFloat(minLat);
-        const signedMaxLat =
-          maxLatDirection === "S" ? -parseFloat(maxLat) : parseFloat(maxLat);
-        const signedMinLon =
-          minLonDirection === "W" ? -parseFloat(minLon) : parseFloat(minLon);
-        const signedMaxLon =
-          maxLonDirection === "W" ? -parseFloat(maxLon) : parseFloat(maxLon);
+        let polygonCoordinates: { lat: number; lng: number }[] = [];
+        let signedMinLat = null;
+        let signedMaxLat = null;
+        let signedMinLon = null;
+        let signedMaxLon = null;
 
-        const polygonCoordinates = [
-          { lat: signedMinLat, lng: signedMinLon },
-          { lat: signedMaxLat, lng: signedMinLon },
-          { lat: signedMaxLat, lng: signedMaxLon },
-          { lat: signedMinLat, lng: signedMaxLon },
-        ];
+        if (
+          minLatDirection &&
+          maxLatDirection &&
+          minLonDirection &&
+          maxLonDirection
+        ) {
+          signedMinLat =
+            minLatDirection === "S" ? -parseFloat(minLat) : parseFloat(minLat);
+          signedMaxLat =
+            maxLatDirection === "S" ? -parseFloat(maxLat) : parseFloat(maxLat);
+          signedMinLon =
+            minLonDirection === "W" ? -parseFloat(minLon) : parseFloat(minLon);
+          signedMaxLon =
+            maxLonDirection === "W" ? -parseFloat(maxLon) : parseFloat(maxLon);
+
+          polygonCoordinates = [
+            { lat: signedMinLat, lng: signedMinLon },
+            { lat: signedMaxLat, lng: signedMinLon },
+            { lat: signedMaxLat, lng: signedMaxLon },
+            { lat: signedMinLat, lng: signedMaxLon },
+          ];
+        } else {
+          polygonCoordinates = [...clickedMarkers.coordinates];
+        }
 
         console.log("Coordinates parsed");
 
@@ -166,6 +186,10 @@ const Map = () => {
             maxLat: signedMaxLat,
             minLon: signedMinLon,
             maxLon: signedMaxLon,
+            coordinates:
+              [...clickedMarkers.coordinates].length > 0
+                ? [clickedMarkers.coordinates]
+                : null,
           }),
         });
 
@@ -361,10 +385,18 @@ const Map = () => {
 
         <Dialog open={showModal} onOpenChange={setShowModal}>
           <DialogContent className="rounded-md max-w-md sm:max-w-lg">
-            {!isLoading ? (
+            {!isLoading && !showMap ? (
               <>
                 <DialogHeader className="xs:text-center text-left">
                   <DialogTitle>Enter Coordinates</DialogTitle>
+                  <p
+                    className="text-[0.92rem] font-medium text-muted-foreground hover:underline hover:cursor-pointer"
+                    onClick={() => {
+                      setShowMap(true);
+                    }}
+                  >
+                    Or choose from map
+                  </p>
                   <DialogDescription>
                     Please enter the minimum and maximum latitude and longitude
                     coordinates the optimal controlled fire location should be
@@ -575,6 +607,109 @@ const Map = () => {
                   {inputError && (
                     <p className="text-sm text-red-500">{inputError}</p>
                   )}
+                </div>
+                <DialogFooter className="gap-y-3">
+                  <Button variant="outline" onClick={() => setShowModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleSubmit} disabled={isLoading}>
+                    Submit
+                  </Button>
+                </DialogFooter>
+              </>
+            ) : !isLoading && showMap ? (
+              <>
+                <DialogHeader className="xs:text-center text-left">
+                  <DialogTitle>Choose from Map</DialogTitle>
+                  <p
+                    className="text-[0.92rem] font-medium text-muted-foreground hover:underline hover:cursor-pointer"
+                    onClick={() => {
+                      setShowMap(false);
+                    }}
+                  >
+                    Or enter coordinates
+                  </p>
+                  <DialogDescription>
+                    Please select the minimum and maximum latitude and longitude
+                    coordinates the optimal controlled fire location should be
+                    found within.
+                  </DialogDescription>
+                </DialogHeader>
+                <div
+                  className={`rounded-md overflow-hidden ${
+                    isMapLoaded2 ? "block" : "hidden"
+                  }`}
+                >
+                  {/* <LoadScript
+                    googleMapsApiKey={
+                      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ""
+                    }
+                    onLoad={() => setIsMapLoaded(true)}
+                  > */}
+                  <GoogleMap
+                    mapContainerStyle={containerStyle}
+                    center={mapCenter}
+                    zoom={zoom}
+                    onLoad={() => setIsMapLoaded2(true)}
+                    onClick={(e) => {
+                      if (e.latLng) {
+                        const lat = e.latLng.lat();
+                        const lng = e.latLng.lng();
+                        console.log("map clicked at:", { lat, lng });
+                        setClickedMarkers((prev) => {
+                          if (prev.coordinates.length < 4) {
+                            return {
+                              coordinates: [...prev.coordinates, { lat, lng }],
+                            };
+                          } else {
+                            return {
+                              coordinates: [
+                                ...prev.coordinates.slice(0, -1),
+                                { lat, lng },
+                              ],
+                            };
+                          }
+                        });
+                      }
+                    }}
+                  >
+                    {clickedMarkers.coordinates.map((marker, index) => (
+                      <Marker
+                        key={index}
+                        position={{ lat: marker.lat, lng: marker.lng }}
+                        draggable={true}
+                        onDragEnd={(e) => {
+                          if (e.latLng) {
+                            const lat = e.latLng.lat();
+                            const lng = e.latLng.lng();
+                            console.log("marker dragged to:", { lat, lng });
+                            setClickedMarkers((prev) => {
+                              const newCoordinates = [...prev.coordinates];
+                              newCoordinates[index] = { lat, lng };
+                              return { coordinates: newCoordinates };
+                            });
+                          }
+                        }}
+                        icon={{
+                          url: "data:image/svg+xml;charset=UTF-8,%3csvg width='20' height='20' viewBox='0 0 20 20' fill='none' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='10' cy='10' r='8' fill='%23FF0000' stroke='%23FFFFFF' stroke-width='2'/%3e%3c/svg%3e",
+                        }}
+                      />
+                    ))}
+
+                    {clickedMarkers.coordinates.length > 3 && (
+                      <Polygon
+                        paths={clickedMarkers.coordinates}
+                        options={{
+                          strokeColor: "#FF0000",
+                          strokeOpacity: 0.8,
+                          strokeWeight: 2,
+                          fillColor: "#FF0000",
+                          fillOpacity: 0.15,
+                        }}
+                      />
+                    )}
+                  </GoogleMap>
+                  {/* </LoadScript> */}
                 </div>
                 <DialogFooter className="gap-y-3">
                   <Button variant="outline" onClick={() => setShowModal(false)}>
