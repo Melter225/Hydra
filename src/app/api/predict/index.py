@@ -2,11 +2,13 @@ from flask import Flask, request, jsonify
 import pickle
 import numpy as np
 from flask_cors import CORS
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-model = pickle.load(open('xgboost_model.pkl', 'rb'))
+model_path = os.path.join(os.path.dirname(__file__), 'xgboost_model.pkl')
+model = pickle.load(open(model_path, 'rb'))
 
 @app.route('/predict', methods=['POST'])
 def predict():
