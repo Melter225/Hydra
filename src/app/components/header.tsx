@@ -11,7 +11,7 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed flex z-50 bg-[#5c9bc7]/70 backdrop-blur-md items-center justify-between top-0 p-4 w-full h-20">
+    <header className="fixed flex z-40 bg-[#5c9bc7]/70 backdrop-blur-md items-center justify-between top-0 p-4 w-full h-20">
       <div className="flex items-center">
         <Image
           className="ml-5 mr-4"

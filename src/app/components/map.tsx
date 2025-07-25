@@ -51,7 +51,7 @@ const Map = () => {
   const fireType = "Controlled Fire";
   const description =
     "Controlled fires are fires that are intentionally ignited for forest management, agricultural, or other purposes. They are both a tool and a weapon for forest management.";
-  const [showModal, setShowModal] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [minLat, setMinLat] = useState("");
   const [maxLat, setMaxLat] = useState("");
   const [minLon, setMinLon] = useState("");

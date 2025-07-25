@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
   function determineSampleCount(areaSize: number): number {
     const baseDensity = 100;
     const suggestedCount = Math.ceil((areaSize / 100) * baseDensity);
-    return Math.min(Math.max(30, suggestedCount), 400);
+    return Math.min(Math.max(100, suggestedCount), 400);
   }
 
   const formatDate = (date: Date) => {
@@ -623,7 +623,7 @@ export async function POST(req: NextRequest) {
       }
 
       const data = await response.json();
-      console.log(!data.isWater === true);
+      console.log("Is on land:", !data.isWater === true);
 
       return !data.isWater === true;
     } catch (error) {
@@ -662,6 +662,8 @@ export async function POST(req: NextRequest) {
       const data = await response.json();
 
       const urbanFeatureThreshold = 6;
+      console.log("isRural:", data.elements.length < urbanFeatureThreshold);
+
       return data.elements.length < urbanFeatureThreshold;
     } catch (error) {
       console.error("Error checking if point is rural:", error);
@@ -775,6 +777,23 @@ export async function POST(req: NextRequest) {
 
     const limitedPoints = points.slice(0, count);
     // const limitedPoints = points;
+
+    if (limitedPoints.length === 0) {
+      console.error("No valid points found after filtering.");
+      return new Response(
+        JSON.stringify({
+          error: "No valid points found in the selected area.",
+          status: 400,
+        }),
+        {
+          status: 400,
+          headers: {
+            "Access-Control-Allow-Origin": "https://hydraapp.vercel.app",
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
 
     try {
       const environmentalPoints = await Promise.all(
@@ -1470,6 +1489,10 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(environmentalData);
+
+    if (!Array.isArray(environmentalData)) {
+      return environmentalData;
+    }
 
     const clusters = findEnvironmentalClusters(environmentalData);
     console.log(clusters);
