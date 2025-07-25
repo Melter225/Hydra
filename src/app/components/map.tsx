@@ -182,20 +182,23 @@ const Map = () => {
         ...clickedMarkers.coordinates,
       ]);
 
-      const response = await fetch("/api/controlledFire", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          minLat: signedMinLat,
-          maxLat: signedMaxLat,
-          minLon: signedMinLon,
-          maxLon: signedMaxLon,
-          coordinates:
-            clickedMarkers.coordinates.length > 0
-              ? clickedMarkers.coordinates
-              : null,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.BACKEND_API_URL}/api/controlledFire`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            minLat: signedMinLat,
+            maxLat: signedMaxLat,
+            minLon: signedMinLon,
+            maxLon: signedMaxLon,
+            coordinates:
+              clickedMarkers.coordinates.length > 0
+                ? clickedMarkers.coordinates
+                : null,
+          }),
+        }
+      );
 
       const data = await response.json();
       console.log("data", data, "location", {
