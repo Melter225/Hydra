@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { GoogleMap, LoadScript, Polygon, Marker } from "@react-google-maps/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,8 @@ const Map = () => {
     coordinates: [],
   });
 
+  const mapRef = useRef<google.maps.Map | null>(null);
+
   const containerStyle = {
     width: "100%",
     height: "70svh",
@@ -136,86 +138,87 @@ const Map = () => {
   // };
 
   const handleSubmit = async () => {
-    if (validateCoordinates()) {
-      try {
-        let polygonCoordinates: { lat: number; lng: number }[] = [];
-        let signedMinLat = null;
-        let signedMaxLat = null;
-        let signedMinLon = null;
-        let signedMaxLon = null;
+    if (!showMap && !validateCoordinates()) {
+      return;
+    }
 
-        if (
-          minLatDirection &&
-          maxLatDirection &&
-          minLonDirection &&
-          maxLonDirection
-        ) {
-          signedMinLat =
-            minLatDirection === "S" ? -parseFloat(minLat) : parseFloat(minLat);
-          signedMaxLat =
-            maxLatDirection === "S" ? -parseFloat(maxLat) : parseFloat(maxLat);
-          signedMinLon =
-            minLonDirection === "W" ? -parseFloat(minLon) : parseFloat(minLon);
-          signedMaxLon =
-            maxLonDirection === "W" ? -parseFloat(maxLon) : parseFloat(maxLon);
+    try {
+      let polygonCoordinates: { lat: number; lng: number }[] = [];
+      let signedMinLat = null;
+      let signedMaxLat = null;
+      let signedMinLon = null;
+      let signedMaxLon = null;
 
-          polygonCoordinates = [
-            { lat: signedMinLat, lng: signedMinLon },
-            { lat: signedMaxLat, lng: signedMinLon },
-            { lat: signedMaxLat, lng: signedMaxLon },
-            { lat: signedMinLat, lng: signedMaxLon },
-          ];
-        } else {
-          polygonCoordinates = [...clickedMarkers.coordinates];
-        }
+      if (clickedMarkers.coordinates.length > 0) {
+        polygonCoordinates = [...clickedMarkers.coordinates];
+      } else {
+        signedMinLat =
+          minLatDirection === "S" ? -parseFloat(minLat) : parseFloat(minLat);
+        signedMaxLat =
+          maxLatDirection === "S" ? -parseFloat(maxLat) : parseFloat(maxLat);
+        signedMinLon =
+          minLonDirection === "W" ? -parseFloat(minLon) : parseFloat(minLon);
+        signedMaxLon =
+          maxLonDirection === "W" ? -parseFloat(maxLon) : parseFloat(maxLon);
 
-        console.log("Coordinates parsed");
-
-        setSelectedBounds({
-          coordinates: polygonCoordinates,
-        });
-
-        console.log("isLoading set to true");
-        setIsLoading(true);
-
-        const response = await fetch("/api/controlledFire", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            minLat: signedMinLat,
-            maxLat: signedMaxLat,
-            minLon: signedMinLon,
-            maxLon: signedMaxLon,
-            coordinates:
-              [...clickedMarkers.coordinates].length > 0
-                ? [clickedMarkers.coordinates]
-                : null,
-          }),
-        });
-
-        const data = await response.json();
-        console.log("data", data, "location", {
-          coordinates: [data.location.lat, data.location.lon],
-          name: data.locationName || "Optimal Location",
-        });
-        setControlledFireData(data);
-        setOptimalLocation({
-          coordinates: [data.location.lon, data.location.lat],
-          name: data.locationName || "Optimal Location",
-        });
-        console.log(controlledFireData, optimalLocation);
-        setMapCenter({ lat: data.location.lat, lng: data.location.lon });
-        setZoom(8);
-        setShowModal(false);
-
-        console.log("isLoading set to false");
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error:", error);
-        setCoordinateErrors({});
-        setInputError("Failed to process request. Please try again.");
-        setIsLoading(false);
+        polygonCoordinates = [
+          { lat: signedMinLat, lng: signedMinLon },
+          { lat: signedMaxLat, lng: signedMinLon },
+          { lat: signedMaxLat, lng: signedMaxLon },
+          { lat: signedMinLat, lng: signedMaxLon },
+        ];
       }
+
+      console.log("Coordinates parsed");
+
+      setSelectedBounds({
+        coordinates: polygonCoordinates,
+      });
+
+      console.log("isLoading set to true");
+      setIsLoading(true);
+
+      console.log("Bounding box", selectedBounds, polygonCoordinates, [
+        ...clickedMarkers.coordinates,
+      ]);
+
+      const response = await fetch("/api/controlledFire", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          minLat: signedMinLat,
+          maxLat: signedMaxLat,
+          minLon: signedMinLon,
+          maxLon: signedMaxLon,
+          coordinates:
+            clickedMarkers.coordinates.length > 0
+              ? clickedMarkers.coordinates
+              : null,
+        }),
+      });
+
+      const data = await response.json();
+      console.log("data", data, "location", {
+        coordinates: [data.location.lat, data.location.lon],
+        name: data.locationName || "Optimal Location",
+      });
+      setControlledFireData(data);
+      setOptimalLocation({
+        coordinates: [data.location.lon, data.location.lat],
+        name: data.locationName || "Optimal Location",
+      });
+      console.log(controlledFireData, optimalLocation);
+      setMapCenter({ lat: data.location.lat, lng: data.location.lon });
+      setZoom(8);
+      setShowModal(false);
+
+      console.log("isLoading set to false");
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Error:", error);
+      setCoordinateErrors({});
+      setInputError("Failed to process request. Please try again.");
+      setIsLoading(false);
     }
   };
 
@@ -300,19 +303,37 @@ const Map = () => {
                 mapContainerStyle={containerStyle}
                 center={mapCenter}
                 zoom={zoom}
+                onLoad={(map) => {
+                  mapRef.current = map;
+                }}
+                onIdle={() => {
+                  if (mapRef.current) {
+                    const center = mapRef.current.getCenter();
+                    setMapCenter({
+                      lat: center?.lat() || 0,
+                      lng: center?.lng() || 0,
+                    });
+                    setZoom(mapRef.current.getZoom() || 0);
+                  }
+                }}
               >
-                {selectedBounds && (
-                  <Polygon
-                    paths={selectedBounds.coordinates}
-                    options={{
-                      strokeColor: "#FF0000",
-                      strokeOpacity: 0.8,
-                      strokeWeight: 2,
-                      fillColor: "#FF0000",
-                      fillOpacity: 0.15,
-                    }}
-                  />
-                )}
+                {selectedBounds &&
+                  (console.log(
+                    "Rendering polygon with:",
+                    selectedBounds?.coordinates
+                  ),
+                  (
+                    <Polygon
+                      paths={selectedBounds.coordinates}
+                      options={{
+                        strokeColor: "#FF0000",
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: "#FF0000",
+                        fillOpacity: 0.15,
+                      }}
+                    />
+                  ))}
 
                 {optimalLocation && (
                   <Marker
@@ -684,9 +705,21 @@ const Map = () => {
                             const lng = e.latLng.lng();
                             console.log("marker dragged to:", { lat, lng });
                             setClickedMarkers((prev) => {
-                              const newCoordinates = [...prev.coordinates];
-                              newCoordinates[index] = { lat, lng };
-                              return { coordinates: newCoordinates };
+                              if (prev.coordinates.length < 4) {
+                                return {
+                                  coordinates: [
+                                    ...prev.coordinates,
+                                    { lat, lng },
+                                  ],
+                                };
+                              } else {
+                                return {
+                                  coordinates: [
+                                    ...prev.coordinates.slice(0, -1),
+                                    { lat, lng },
+                                  ],
+                                };
+                              }
                             });
                           }
                         }}
