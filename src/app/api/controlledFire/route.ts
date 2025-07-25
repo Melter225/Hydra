@@ -1383,7 +1383,7 @@ export async function POST(req: NextRequest) {
       });
 
       const response = await fetch(
-        `${process.env.FLASK_API_URL || "http://localhost:5001"}/predict`,
+        `${process.env.FLASK_API_URL || "http://localhost:5000"}/predict`,
         {
           method: "POST",
           headers: {
