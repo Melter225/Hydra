@@ -1500,13 +1500,13 @@ export async function POST(req: NextRequest) {
       locationData.soilMoisture
     );
 
-    return NextResponse.json(
-      {
+    const res = new Response(
+      JSON.stringify({
         locationName: environmentalData[0].location,
         location,
         intensity,
         status: 200,
-      },
+      }),
       {
         status: 200,
         headers: {
@@ -1515,11 +1515,21 @@ export async function POST(req: NextRequest) {
         },
       }
     );
+    return res;
   } catch (error) {
     console.error("Error:", error);
-    return NextResponse.json({
-      error: "Error fetching optimal controlled fire location.",
-      status: 500,
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Error fetching optimal controlled fire location.",
+        status: 500,
+      }),
+      {
+        status: 500,
+        headers: {
+          "Access-Control-Allow-Origin": "https://hydraapp.vercel.app",
+          "Content-Type": "application/json",
+        },
+      }
+    );
   }
 }
