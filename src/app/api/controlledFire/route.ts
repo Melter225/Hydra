@@ -90,6 +90,17 @@ interface NasaPowerTemporalData {
   };
 }
 
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "https://hydraapp.vercel.app",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
@@ -1489,13 +1500,21 @@ export async function POST(req: NextRequest) {
       locationData.soilMoisture
     );
 
-    return NextResponse.json({
-      locationName: environmentalData[0].location,
-      location,
-      // reason,
-      intensity,
-      status: 200,
-    });
+    return NextResponse.json(
+      {
+        locationName: environmentalData[0].location,
+        location,
+        intensity,
+        status: 200,
+      },
+      {
+        status: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "https://hydraapp.vercel.app",
+          "Content-Type": "application/json",
+        },
+      }
+    );
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json({

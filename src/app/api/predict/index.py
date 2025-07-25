@@ -5,7 +5,7 @@ from flask_cors import CORS
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["https://hydraapp.vercel.app"])
 
 model_path = os.path.join(os.path.dirname(__file__), 'xgboost_model.pkl')
 model = pickle.load(open(model_path, 'rb'))
