@@ -183,7 +183,7 @@ const Map = () => {
       ]);
 
       const response = await fetch(
-        `${process.env.BACKEND_API_URL}/api/controlledFire`,
+        `${process.env.NEXT_PUBLIC_BACKEND_API_URL}/api/controlledFire`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -306,9 +306,6 @@ const Map = () => {
                 mapContainerStyle={containerStyle}
                 center={mapCenter}
                 zoom={zoom}
-                onLoad={(map) => {
-                  mapRef.current = map;
-                }}
                 onIdle={() => {
                   if (mapRef.current) {
                     const center = mapRef.current.getCenter();
