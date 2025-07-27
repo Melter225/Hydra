@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
   function determineSampleCount(areaSize: number): number {
     const baseDensity = 100;
     const suggestedCount = Math.ceil((areaSize / 100) * baseDensity);
-    return Math.min(Math.max(100, suggestedCount), 400);
+    return Math.min(Math.max(30, suggestedCount), 400);
   }
 
   const formatDate = (date: Date) => {
