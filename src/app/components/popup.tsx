@@ -7,11 +7,15 @@ const Popup = () => {
   const [showPopup, setShowPopup] = React.useState(true);
 
   useEffect(() => {
-    document.body.style.overflow = "hidden";
+    if (showPopup) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
     return () => {
       document.body.style.overflow = "";
     };
-  }, []);
+  }, [showPopup]);
 
   if (!showPopup) return null;
 
