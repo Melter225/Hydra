@@ -42,7 +42,7 @@ const Popup = () => {
             </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-1">
-                Processing Time Notice
+                About Hydra&apos;s Results
               </h2>
               <p className="text-sm text-gray-500">
                 Important information about Hydra testing
@@ -51,6 +51,15 @@ const Popup = () => {
           </div>
 
           <div className="space-y-4">
+            <p className="text-gray-700 leading-relaxed">
+              Because Hydra&apos;s algorithm is based on real-time data, such as
+              wind speed, wind direction, temperature, and humidity,
+              <span className="font-semibold text-gray-900">
+                its results are subject to change; same coordinates may yield
+                different results at different times.
+              </span>
+            </p>
+
             <p className="text-gray-700 leading-relaxed">
               When testing Hydra, please note that{" "}
               <span className="font-semibold text-gray-900">
