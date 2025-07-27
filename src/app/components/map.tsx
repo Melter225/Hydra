@@ -219,8 +219,36 @@ const Map = () => {
       setIsLoading(false);
     } catch (error) {
       console.error("Error:", error);
+
+      if (error instanceof Response) {
+        const errData = await error.json();
+        if (
+          errData?.error &&
+          errData.error.toLowerCase().includes("no valid points found")
+        ) {
+          setInputError(
+            "No valid points found in the selected area. Please try a different region."
+          );
+        } else {
+          setInputError("Failed to process request. Please try again later.");
+        }
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message: string }).message === "string" &&
+        (error as { message: string }).message
+          .toLowerCase()
+          .includes("no valid points found")
+      ) {
+        setInputError(
+          "No valid points found in the selected area. Please try a different region."
+        );
+      } else {
+        setInputError("Failed to process request. Please try again later.");
+      }
+
       setCoordinateErrors({});
-      setInputError("Failed to process request. Please try again.");
       setIsLoading(false);
     }
   };
