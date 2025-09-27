@@ -272,7 +272,7 @@ const Map = () => {
   const downloadMapImage = async () => {
     const imageUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${
       mapCenter.lat
-    },${mapCenter.lng}&zoom=${zoom}&size=600x400&maptype=roadmap&marker=${
+    },${mapCenter.lng}&zoom=${zoom + 2}&size=600x400&maptype=roadmap&marker=${
       optimalLocation
         ? `&markers=color:red%7Clabel:O%7C${optimalLocation.coordinates[1]},${optimalLocation.coordinates[0]}`
         : ""
