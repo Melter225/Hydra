@@ -633,7 +633,7 @@ export async function POST(req: NextRequest) {
   }
 
   async function isRuralPoint(lat: number, lon: number): Promise<boolean> {
-    const radiusInMeters = 1609.345;
+    const radiusInMeters = 8000;
 
     const query = `
     [out:json];
