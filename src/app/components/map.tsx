@@ -203,16 +203,16 @@ const Map = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        if (
-          !data?.error ||
-          data.error.toLowerCase().includes("no valid points found")
-        ) {
-          setInputError(
-            "No valid points found in the selected area. Please try a different region."
-          );
-        } else {
-          setInputError("Failed to process request. Please try again later.");
-        }
+        // if (
+        //   !data?.error ||
+        //   data.error.toLowerCase().includes("no valid points found")
+        // ) {
+        setInputError(
+          "No valid points found in the selected area. Please try a different region or try again later."
+        );
+        // } else {
+        //   setInputError("Failed to process request. Please try again later.");
+        // }
         setIsLoading(false);
         return;
       }
