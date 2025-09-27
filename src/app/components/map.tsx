@@ -204,7 +204,7 @@ const Map = () => {
 
       if (!response.ok) {
         if (
-          data?.error &&
+          !data?.error &&
           data.error.toLowerCase().includes("no valid points found")
         ) {
           setInputError(
