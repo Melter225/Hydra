@@ -26,7 +26,7 @@ const Popup = () => {
         onClick={() => setShowPopup(false)}
       />
 
-      <div className="relative bg-gray-50 rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 border border-gray-100">
+      <div className="relative bg-gray-100 rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 border border-gray-100">
         <button
           onClick={() => setShowPopup(false)}
           className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors duration-200 group"
@@ -54,7 +54,7 @@ const Popup = () => {
             <p className="text-gray-700 leading-relaxed">
               Because Hydra&apos;s algorithm is based on real-time data, such as
               wind speed, wind direction, temperature, and humidity,
-              <span className="font-semibold text-gray-900">
+              <span className="ml-1 font-semibold text-gray-900">
                 its results are subject to change; same coordinates may yield
                 different results at different times.
               </span>
@@ -81,7 +81,7 @@ const Popup = () => {
           <div className="flex gap-3 mt-8">
             <button
               onClick={() => setShowPopup(false)}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-gray-200 font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-gray-100 font-medium py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Got it
             </button>
